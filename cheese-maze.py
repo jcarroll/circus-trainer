@@ -1,140 +1,78 @@
+import os
+import sys
 import time
 import random
-import sys
 
-# Define the maze sizes and time limits for each difficulty level
-MAZE_SIZES = [(20, 20), (40, 40), (100, 100)]
-TIME_LIMITS = [60, 45, 30]
+# Define the maze dimensions
+MAZE_WIDTH = 10
+MAZE_HEIGHT = 10
 
-# Define the symbols used in the maze
-MOUSE = 'M'
-CHEESE = 'C'
-WALL = '#'
-EMPTY = ' '
+# Define the player's starting position
+player_x = 0
+player_y = 0
 
-def create_maze(size):
-    """
-    Create a maze of the given size.
-    The maze is represented as a 2D list, where each element is a string representing a cell.
-    """
-    maze = [[WALL for _ in range(size[1])] for _ in range(size[0])]
+# Define the prize's position
+prize_x = random.randint(1, MAZE_WIDTH - 2)
+prize_y = random.randint(1, MAZE_HEIGHT - 2)
 
-    # Place the mouse and cheese randomly
-    mouse_x = random.randint(0, size[0] - 1)
-    mouse_y = random.randint(0, size[1] - 1)
-    maze[mouse_x][mouse_y] = MOUSE
+# Define the maze as a 2D list
+maze = [['-' for x in range(MAZE_WIDTH)] for y in range(MAZE_HEIGHT)]
 
-    cheese_x = random.randint(0, size[0] - 1)
-    cheese_y = random.randint(0, size[1] - 1)
-    while maze[cheese_x][cheese_y] != EMPTY:
-        cheese_x = random.randint(0, size[0] - 1)
-        cheese_y = random.randint(0, size[1] - 1)
-    maze[cheese_x][cheese_y] = CHEESE
+# Place the player in the maze
+maze[player_y][player_x] = 'P'
 
-    # Fill the rest of the maze with empty cells
-    for i in range(size[0]):
-        for j in range(size[1]):
-            if maze[i][j] == EMPTY:
-                maze[i][j] = EMPTY
+# Place the prize in the maze
+maze[prize_y][prize_x] = 'X'
 
-    return maze
+# Function to clear the console
+def clear_console():
+    os.system('cls' if os.name == 'nt' else 'clear')
 
-def display_maze(maze):
-    """
-    Print the maze to the console.
-    """
+# Function to display the maze
+def display_maze():
+    clear_console()
     for row in maze:
-        print(''.join(row))
+        print(' '.join(row))
+    print(f"\nPlayer's position: ({player_x}, {player_y})")
 
-def move_mouse(maze, mouse_x, mouse_y, dx, dy):
-    """
-    Move the mouse in the maze based on the given direction.
-    Return the new mouse position if the move is valid, or the original position if the move is not valid.
-    """
-    new_x = mouse_x + dx
-    new_y = mouse_y + dy
+# Function to move the player
+def move_player(dx, dy):
+    global player_x, player_y
 
-    if 0 <= new_x < len(maze) and 0 <= new_y < len(maze[0]) and maze[new_x][new_y] != WALL:
-        maze[mouse_x][mouse_y] = EMPTY
-        maze[new_x][new_y] = MOUSE
-        return new_x, new_y
-    else:
-        return mouse_x, mouse_y
+    # Clear the player's previous position
+    maze[player_y][player_x] = '-'
 
-def play_game(difficulty):
-    """
-    Play the cheese maze game at the given difficulty level.
-    Return True if the player finds the cheese before the time runs out, False otherwise.
-    """
-    maze_size = MAZE_SIZES[difficulty]
-    time_limit = TIME_LIMITS[difficulty]
+    # Update the player's position
+    player_x += dx
+    player_y += dy
 
-    maze = create_maze(maze_size)
-    display_maze(maze)
+    # Ensure the player stays within the maze boundaries
+    player_x = max(0, min(player_x, MAZE_WIDTH - 1))
+    player_y = max(0, min(player_y, MAZE_HEIGHT - 1))
 
-    # Find the initial mouse position
-    for i in range(maze_size[0]):
-        for j in range(maze_size[1]):
-            if maze[i][j] == MOUSE:
-                mouse_x, mouse_y = i, j
-                break
+    # Place the player in the new position
+    maze[player_y][player_x] = 'P'
 
-    start_time = time.time()
-    while True:
-        # Check if the time has run out
-        if time.time() - start_time >= time_limit:
-            print("Time's up! You didn't find the cheese.")
-            return False
+    # Check if the player has found the prize
+    if player_x == prize_x and player_y == prize_y:
+        print("Congratulations! You found the prize!")
+        sys.exit()
 
-        # Get the user's input
-        key = input("Use the cursor keys to move the mouse. Press Enter to quit: ")
+# Game loop
+while True:
+    display_maze()
 
-        # Move the mouse based on the user's input
-        if key == '\x1b[A':  # Up
-            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, -1, 0)
-        elif key == '\x1b[B':  # Down
-            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, 1, 0)
-        elif key == '\x1b[C':  # Right
-            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, 0, 1)
-        elif key == '\x1b[D':  # Left
-            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, 0, -1)
-        elif key == '':
-            print("You quit the game.")
-            return False
+    # Get the user's input
+    user_input = input("Use the arrow keys to move (or 'q' to quit): ")
 
-        # Check if the mouse has found the cheese
-        if maze[mouse_x][mouse_y] == CHEESE:
-            print("Congratulations! You found the cheese.")
-            return True
-
-        # Clear the console and redisplay the maze
-        sys.stdout.write("\033[H\033[J")
-        display_maze(maze)
-
-def main():
-    """
-    Main function to run the cheese maze game.
-    """
-    print("Welcome to the Cheese Maze Game!")
-    print("Choose a difficulty level:")
-    print("1. Easy")
-    print("2. Medium")
-    print("3. Difficult")
-
-    while True:
-        try:
-            difficulty = int(input("Enter 1, 2, or 3: ")) - 1
-            if 0 <= difficulty <= 2:
-                break
-            else:
-                print("Invalid choice. Please try again.")
-        except ValueError:
-            print("Invalid input. Please enter a number.")
-
-    if play_game(difficulty):
-        print("You won the game!")
-    else:
-        print("You lost the game.")
-
-if __name__ == "__main__":
-    main()
+    # Move the player based on the user's input
+    if user_input == 'q':
+        break
+    elif user_input == 'w' or user_input == '\x1b[A':
+        move_player(0, -1)
+    elif user_input == 's' or user_input == '\x1b[B':
+        move_player(0, 1)
+    elif user_input == 'a' or user_input == '\x1b[D':
+        move_player(-1, 0)
+    elif user_input == 'd' or user_input == '\x1b[C':
+        move_player(1, 0)
