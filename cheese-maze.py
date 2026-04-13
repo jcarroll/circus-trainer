@@ -1,150 +1,140 @@
-import random
 import time
+import random
 import sys
 
-# Maze sizes for each difficulty level
-MAZE_SIZES = {
-    'easy': (20, 20),
-    'medium': (40, 40),
-    'hard': (100, 100)
-}
+# Define the maze sizes and time limits for each difficulty level
+MAZE_SIZES = [(20, 20), (40, 40), (100, 100)]
+TIME_LIMITS = [60, 45, 30]
 
-# Time limits for each difficulty level (in seconds)
-TIME_LIMITS = {
-    'easy': 60,
-    'medium': 120,
-    'hard': 300
-}
-
-# Symbols used in the maze
-WALL = '#'
-CHEESE = 'C'
+# Define the symbols used in the maze
 MOUSE = 'M'
-EMPTY = '.'
+CHEESE = 'C'
+WALL = '#'
+EMPTY = ' '
 
-def create_maze(width, height):
+def create_maze(size):
     """
-    Create a new maze with the given dimensions.
-    The maze is represented as a 2D list, where each element is a string representing a square.
+    Create a maze of the given size.
+    The maze is represented as a 2D list, where each element is a string representing a cell.
     """
-    maze = [[WALL for _ in range(width)] for _ in range(height)]
-    
-    # Place the cheese in a random location
-    cheese_x = random.randint(1, width - 2)
-    cheese_y = random.randint(1, height - 2)
-    maze[cheese_y][cheese_x] = CHEESE
-    
-    # Place the mouse in a random location, not on the cheese
-    mouse_x = random.randint(1, width - 2)
-    mouse_y = random.randint(1, height - 2)
-    while (mouse_x, mouse_y) == (cheese_x, cheese_y):
-        mouse_x = random.randint(1, width - 2)
-        mouse_y = random.randint(1, height - 2)
-    maze[mouse_y][mouse_x] = MOUSE
-    
+    maze = [[WALL for _ in range(size[1])] for _ in range(size[0])]
+
+    # Place the mouse and cheese randomly
+    mouse_x = random.randint(0, size[0] - 1)
+    mouse_y = random.randint(0, size[1] - 1)
+    maze[mouse_x][mouse_y] = MOUSE
+
+    cheese_x = random.randint(0, size[0] - 1)
+    cheese_y = random.randint(0, size[1] - 1)
+    while maze[cheese_x][cheese_y] != EMPTY:
+        cheese_x = random.randint(0, size[0] - 1)
+        cheese_y = random.randint(0, size[1] - 1)
+    maze[cheese_x][cheese_y] = CHEESE
+
+    # Fill the rest of the maze with empty cells
+    for i in range(size[0]):
+        for j in range(size[1]):
+            if maze[i][j] == EMPTY:
+                maze[i][j] = EMPTY
+
     return maze
 
-def display_maze(maze, revealed_squares):
+def display_maze(maze):
     """
-    Display the current state of the maze, revealing only the squares that have been visited.
+    Print the maze to the console.
     """
-    for y in range(len(maze)):
-        for x in range(len(maze[0])):
-            if (x, y) in revealed_squares:
-                print(maze[y][x], end='')
-            else:
-                print(EMPTY, end='')
-        print()
+    for row in maze:
+        print(''.join(row))
 
-def get_visible_squares(maze, mouse_x, mouse_y, radius=3):
+def move_mouse(maze, mouse_x, mouse_y, dx, dy):
     """
-    Get the set of squares that are visible from the mouse's current position.
-    The mouse can only see squares within the given radius, and only in directions that are not blocked by walls.
+    Move the mouse in the maze based on the given direction.
+    Return the new mouse position if the move is valid, or the original position if the move is not valid.
     """
-    visible_squares = set()
-    for dx in range(-radius, radius + 1):
-        for dy in range(-radius, radius + 1):
-            if abs(dx) + abs(dy) <= radius:
-                x = mouse_x + dx
-                y = mouse_y + dy
-                if 0 <= x < len(maze[0]) and 0 <= y < len(maze):
-                    if maze[y][x] != WALL:
-                        visible_squares.add((x, y))
-    return visible_squares
+    new_x = mouse_x + dx
+    new_y = mouse_y + dy
+
+    if 0 <= new_x < len(maze) and 0 <= new_y < len(maze[0]) and maze[new_x][new_y] != WALL:
+        maze[mouse_x][mouse_y] = EMPTY
+        maze[new_x][new_y] = MOUSE
+        return new_x, new_y
+    else:
+        return mouse_x, mouse_y
 
 def play_game(difficulty):
     """
     Play the cheese maze game at the given difficulty level.
-    Returns True if the mouse reaches the cheese before the time runs out, False otherwise.
+    Return True if the player finds the cheese before the time runs out, False otherwise.
     """
-    width, height = MAZE_SIZES[difficulty]
+    maze_size = MAZE_SIZES[difficulty]
     time_limit = TIME_LIMITS[difficulty]
-    
-    maze = create_maze(width, height)
-    revealed_squares = set()
-    mouse_x, mouse_y = next((x, y) for y, row in enumerate(maze) for x, cell in enumerate(row) if cell == MOUSE)
-    
+
+    maze = create_maze(maze_size)
+    display_maze(maze)
+
+    # Find the initial mouse position
+    for i in range(maze_size[0]):
+        for j in range(maze_size[1]):
+            if maze[i][j] == MOUSE:
+                mouse_x, mouse_y = i, j
+                break
+
     start_time = time.time()
     while True:
-        # Display the current state of the maze
-        display_maze(maze, revealed_squares)
-        
-        # Check if the mouse has reached the cheese
-        if maze[mouse_y][mouse_x] == CHEESE:
-            print("Congratulations! You found the cheese!")
-            return True
-        
         # Check if the time has run out
-        elapsed_time = time.time() - start_time
-        if elapsed_time > time_limit:
+        if time.time() - start_time >= time_limit:
             print("Time's up! You didn't find the cheese.")
             return False
-        
-        # Get the user's input for the mouse's movement
-        move = input("Use the arrow keys to move the mouse: ")
-        if move == 'up':
-            mouse_y = max(mouse_y - 1, 0)
-        elif move == 'down':
-            mouse_y = min(mouse_y + 1, height - 1)
-        elif move == 'left':
-            mouse_x = max(mouse_x - 1, 0)
-        elif move == 'right':
-            mouse_x = min(mouse_x + 1, width - 1)
-        else:
-            print("Invalid input. Please try again.")
-            continue
-        
-        # Update the revealed squares
-        visible_squares = get_visible_squares(maze, mouse_x, mouse_y)
-        revealed_squares.update(visible_squares)
-        
-        # Clear the screen and move the cursor to the top-left
-        print('\033[H\033[J', end='')
+
+        # Get the user's input
+        key = input("Use the cursor keys to move the mouse. Press Enter to quit: ")
+
+        # Move the mouse based on the user's input
+        if key == '\x1b[A':  # Up
+            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, -1, 0)
+        elif key == '\x1b[B':  # Down
+            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, 1, 0)
+        elif key == '\x1b[C':  # Right
+            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, 0, 1)
+        elif key == '\x1b[D':  # Left
+            mouse_x, mouse_y = move_mouse(maze, mouse_x, mouse_y, 0, -1)
+        elif key == '':
+            print("You quit the game.")
+            return False
+
+        # Check if the mouse has found the cheese
+        if maze[mouse_x][mouse_y] == CHEESE:
+            print("Congratulations! You found the cheese.")
+            return True
+
+        # Clear the console and redisplay the maze
+        sys.stdout.write("\033[H\033[J")
+        display_maze(maze)
 
 def main():
     """
     Main function to run the cheese maze game.
-    Prompts the user to select a difficulty level and plays the game.
     """
     print("Welcome to the Cheese Maze Game!")
-    print("Select a difficulty level:")
+    print("Choose a difficulty level:")
     print("1. Easy")
     print("2. Medium")
-    print("3. Hard")
-    
+    print("3. Difficult")
+
     while True:
-        choice = input("Enter your choice (1-3): ")
-        if choice in ['1', '2', '3']:
-            difficulty = ['easy', 'medium', 'hard'][int(choice) - 1]
-            break
-        else:
-            print("Invalid choice. Please try again.")
-    
-    result = play_game(difficulty)
-    if result:
-        sys.exit(0)  # Exit with a "true" return code
+        try:
+            difficulty = int(input("Enter 1, 2, or 3: ")) - 1
+            if 0 <= difficulty <= 2:
+                break
+            else:
+                print("Invalid choice. Please try again.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+    if play_game(difficulty):
+        print("You won the game!")
     else:
-        sys.exit(1)  # Exit with a "false" return code
+        print("You lost the game.")
 
 if __name__ == "__main__":
     main()
